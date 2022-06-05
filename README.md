@@ -1,6 +1,6 @@
 # UnityShell
 
-> This repository is fork from the xxx repository, and some additional practical functions are added.
+> This repository is fork from the [wlgys8/UnityShell](https://github.com/wlgys8/UnityShell) repository. Some additional practical functions are added.
 
 Execute shell commands in Unity Editor, support osx & windows
 
