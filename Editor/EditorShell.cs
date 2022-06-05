@@ -124,27 +124,26 @@ namespace MS.Shell.Editor{
         {
             return ExecuteSync(cmd, options, out _);
         }
-        public static int ExecuteSync(string cmd, Options options, out List<Tuple<LogType, string>> logs)
+        public static int ExecuteSync(string cmd, Options options, out List<LogInfo> logs)
         {
             var start = BuildStartInfo(cmd, options);
             var p = Process.Start(start);
-            // var strOutput = p.StandardOutput.ReadToEnd();
-            logs = new List<Tuple<LogType, string>>();
+            logs = new List<LogInfo>();
             p.WaitForExit();
             do{
-                string line = p.StandardOutput.ReadLine();
+                var line = p.StandardOutput.ReadLine();
                 if(line == null){
                     break;
                 }
                 line = line.Replace("\\","/");
-                logs.Add(new Tuple<LogType, string>(LogType.Log,line));
+                logs.Add(new LogInfo(LogType.Log, line));
             }while(true);
             while(true){
-                string error = p.StandardError.ReadLine();
+                var error = p.StandardError.ReadLine();
                 if(string.IsNullOrEmpty(error)){
                     break;
                 }
-                logs.Add(new Tuple<LogType, string>(LogType.Error,error));
+                logs.Add(new LogInfo(LogType.Error, error));
             }
             return p.ExitCode;
         }
@@ -212,6 +211,18 @@ namespace MS.Shell.Editor{
                 }
             });
             return operation;
+        }
+        
+        public struct LogInfo
+        {
+            public readonly LogType Type;
+            public readonly string Message;
+
+            public LogInfo(LogType type, string message)
+            {
+                Type = type;
+                Message = message;
+            }
         }
 
         public class Options{

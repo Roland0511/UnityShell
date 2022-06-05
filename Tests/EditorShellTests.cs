@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using NUnit.Framework;
@@ -82,18 +83,17 @@ namespace MS.Shell.Editor.Tests{
             var code = EditorShell.ExecuteSync(cmd, null, out var logs);
             for (int i = 0; i < logs.Count; i++)
             {
-                if (logs[i].Item1 == EditorShell.LogType.Error)
+                if (logs[i].Type == EditorShell.LogType.Error)
                 {
-                    Debug.LogError(logs[i].Item2);
+                    Debug.LogError(logs[i].Message);
                 }
                 else
                 {
-                    Debug.Log(logs[i].Item2);
+                    Debug.Log(logs[i].Message);
                 }
             }
             return code;
         }
-
 
         private class ShellOperationYieldable:CustomYieldInstruction{
             private EditorShell.Operation _operation;
