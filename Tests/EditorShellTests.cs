@@ -30,6 +30,14 @@ namespace MS.Shell.Editor.Tests{
             yield return new TaskYieldable<int>(task);
             Assert.True(task.Result == 0);
         }
+        
+        [UnityTest]
+        public IEnumerator EchoSync(){
+            var code = ExecuteShellSync("echo hello world");
+            yield return null;
+            Assert.True(code == 0);
+        }
+
 
 
         [UnityTest]
@@ -62,8 +70,28 @@ namespace MS.Shell.Editor.Tests{
 
         private async Task<int> ExecuteShellAsync(string cmd){
             var task = EditorShell.Execute(cmd,new EditorShell.Options());
+            task.onLog += (logType,log)=>{
+                Debug.Log(log);
+            };
             int code = await task; 
             return code;  
+        }
+
+        private int ExecuteShellSync(string cmd)
+        {
+            var code = EditorShell.ExecuteSync(cmd, null, out var logs);
+            for (int i = 0; i < logs.Count; i++)
+            {
+                if (logs[i].Item1 == EditorShell.LogType.Error)
+                {
+                    Debug.LogError(logs[i].Item2);
+                }
+                else
+                {
+                    Debug.Log(logs[i].Item2);
+                }
+            }
+            return code;
         }
 
 

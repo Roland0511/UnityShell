@@ -1,4 +1,5 @@
-﻿using System.Collections;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -78,46 +79,83 @@ namespace MS.Shell.Editor{
                 _queue.Add(action);
             }
         }
+
+        private static ProcessStartInfo BuildStartInfo(string cmd, Options options = null)
+        {
+            var start = new ProcessStartInfo(shellApp);
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
+            start.Arguments = "-c";
+#elif UNITY_EDITOR_WIN
+            start.Arguments = "/c";
+#endif
+            if(options == null){
+                options = new Options();
+            }
+            if(options.environmentVars != null){
+                foreach(var pair in options.environmentVars){
+                    var value = System.Environment.ExpandEnvironmentVariables(pair.Value);
+                    if (start.EnvironmentVariables.ContainsKey(pair.Key))
+                    {
+                        // UnityEngine.Debug.LogWarningFormat("Override EnvironmentVar, original = {0}, new = {1}",start.EnvironmentVariables[pair.Key],pair.Value);
+                        start.EnvironmentVariables[pair.Key] = value;
+                    }
+                    else
+                    {
+                        start.EnvironmentVariables.Add(pair.Key, value);
+                    }
+                }
+            }
+
+            start.Arguments += (" \"" + cmd + " \"");
+            start.CreateNoWindow = true;
+            start.ErrorDialog = true;
+            start.UseShellExecute = false;
+            start.WorkingDirectory = options.workDirectory == null ? "./":options.workDirectory;
+            start.RedirectStandardOutput = true;
+            start.RedirectStandardError = true;
+            start.RedirectStandardInput = true;
+            start.StandardOutputEncoding = options.encoding;
+            start.StandardErrorEncoding = options.encoding;
+
+            return start;
+        }
+
+        public static int ExecuteSync(string cmd, Options options = null)
+        {
+            return ExecuteSync(cmd, options, out _);
+        }
+        public static int ExecuteSync(string cmd, Options options, out List<Tuple<LogType, string>> logs)
+        {
+            var start = BuildStartInfo(cmd, options);
+            var p = Process.Start(start);
+            // var strOutput = p.StandardOutput.ReadToEnd();
+            logs = new List<Tuple<LogType, string>>();
+            p.WaitForExit();
+            do{
+                string line = p.StandardOutput.ReadLine();
+                if(line == null){
+                    break;
+                }
+                line = line.Replace("\\","/");
+                logs.Add(new Tuple<LogType, string>(LogType.Log,line));
+            }while(true);
+            while(true){
+                string error = p.StandardError.ReadLine();
+                if(string.IsNullOrEmpty(error)){
+                    break;
+                }
+                logs.Add(new Tuple<LogType, string>(LogType.Error,error));
+            }
+            return p.ExitCode;
+        }
+        
         public static Operation Execute(string cmd,Options options = null){
             Operation operation = new Operation();
             System.Threading.ThreadPool.QueueUserWorkItem(delegate(object state) {
                 Process p = null;
-                try{
-                    ProcessStartInfo start = new ProcessStartInfo(shellApp);
-                    #if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
-                    start.Arguments = "-c";
-                    #elif UNITY_EDITOR_WIN
-                    start.Arguments = "/c";
-                    #endif
-
-                    if(options == null){
-                        options = new Options();
-                    }
-                    if(options.environmentVars != null){
-                        foreach(var pair in options.environmentVars){
-                            var value = System.Environment.ExpandEnvironmentVariables(pair.Value);
-                            if (start.EnvironmentVariables.ContainsKey(pair.Key))
-                            {
-                                // UnityEngine.Debug.LogWarningFormat("Override EnvironmentVar, original = {0}, new = {1}",start.EnvironmentVariables[pair.Key],pair.Value);
-                                start.EnvironmentVariables[pair.Key] = value;
-                            }
-                            else
-                            {
-                                start.EnvironmentVariables.Add(pair.Key, value);
-                            }
-                        }
-                    }
-
-                    start.Arguments += (" \"" + cmd + " \"");
-                    start.CreateNoWindow = true;
-                    start.ErrorDialog = true;
-                    start.UseShellExecute = false;
-                    start.WorkingDirectory = options.workDirectory == null ? "./":options.workDirectory;
-                    start.RedirectStandardOutput = true;
-                    start.RedirectStandardError = true;
-                    start.RedirectStandardInput = true;
-                    start.StandardOutputEncoding = options.encoding;
-                    start.StandardErrorEncoding = options.encoding;
+                try
+                {
+                    var start = BuildStartInfo(cmd, options);
 
                     if(operation.isKillRequested){
                         return;
