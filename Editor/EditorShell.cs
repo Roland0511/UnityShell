@@ -1,7 +1,5 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using UnityEngine.Events;
 using UnityEditor;
 using System.Diagnostics;
@@ -120,11 +118,26 @@ namespace MS.Shell.Editor{
             return start;
         }
 
+        [Obsolete("Use EditorShell.Execute instead", true)]
         public static int ExecuteSync(string cmd, Options options = null)
         {
-            return ExecuteSync(cmd, options, out _);
+            return Execute(cmd, options, out _);
         }
+        
+        [Obsolete("Use EditorShell.Execute instead", true)]
         public static int ExecuteSync(string cmd, Options options, out List<LogInfo> logs)
+        {
+            return Execute(cmd, options, out logs);
+        }
+
+        /// <summary>
+        /// 执行一个命令(同步)
+        /// </summary>
+        /// <param name="cmd">要执行的命令，如:"echo hello world"</param>
+        /// <param name="options">命令执行选项</param>
+        /// <param name="logs">命令执行过程中产生的所有日志</param>
+        /// <returns></returns>
+        public static int Execute(string cmd, Options options, out List<LogInfo> logs)
         {
             var start = BuildStartInfo(cmd, options);
             var p = Process.Start(start);
@@ -147,8 +160,14 @@ namespace MS.Shell.Editor{
             }
             return p.ExitCode;
         }
-        
-        public static Operation Execute(string cmd,Options options = null){
+
+        /// <summary>
+        /// 执行一个命令(异步)
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <param name="options"></param>
+        /// <returns></returns>
+        public static Operation Execute(string cmd, Options options = null){
             Operation operation = new Operation();
             System.Threading.ThreadPool.QueueUserWorkItem(delegate(object state) {
                 Process p = null;

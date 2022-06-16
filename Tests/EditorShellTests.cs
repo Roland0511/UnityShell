@@ -80,7 +80,7 @@ namespace MS.Shell.Editor.Tests{
 
         private int ExecuteShellSync(string cmd)
         {
-            var code = EditorShell.ExecuteSync(cmd, null, out var logs);
+            var code = EditorShell.Execute(cmd, null, out var logs);
             for (int i = 0; i < logs.Count; i++)
             {
                 if (logs[i].Type == EditorShell.LogType.Error)
