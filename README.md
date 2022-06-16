@@ -34,7 +34,7 @@ int exitCode = await operation; //support async/await
 
 - Execute the command `ls` synchronously
 ``` csharp
-var exitCode = EditorShell.ExecuteSync("ls", null, out var logs);
+var exitCode = EditorShell.Execute("ls", null, out var logs);
 foreach (var t in logs)
 {
     if (t.Type == EditorShell.LogType.Error)
