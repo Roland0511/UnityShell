@@ -4,6 +4,7 @@ using UnityEngine.Events;
 using UnityEditor;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 namespace MS.Shell.Editor{
@@ -78,7 +79,7 @@ namespace MS.Shell.Editor{
             }
         }
 
-        private static ProcessStartInfo BuildStartInfo(string cmd, Options options = null)
+        private static ProcessStartInfo BuildStartInfo(IEnumerable<string> cmds, Options options = null)
         {
             var start = new ProcessStartInfo(shellApp);
 #if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
@@ -104,7 +105,8 @@ namespace MS.Shell.Editor{
                 }
             }
 
-            start.Arguments += (" \"" + cmd + " \"");
+           
+            start.Arguments += (" \"" + string.Join(options.GetProcessingSymbol(),cmds) + " \"");
             start.CreateNoWindow = true;
             start.ErrorDialog = true;
             start.UseShellExecute = false;
@@ -131,15 +133,27 @@ namespace MS.Shell.Editor{
         }
         
         /// <summary>
-        /// 执行一个命令(同步)
+        /// Execute a command synchronously
         /// </summary>
-        /// <param name="cmd">要执行的命令，如:"echo hello world"</param>
-        /// <param name="options">命令执行选项</param>
-        /// <param name="logs">命令执行过程中产生的所有日志</param>
-        /// <returns></returns>
+        /// <param name="cmd">Command to execute</param>
+        /// <param name="options">Execution options</param>
+        /// <param name="logs">All logs generated during command execution</param>
+        /// <returns>ExitCode</returns>
         public static int Execute(string cmd, Options options, out List<LogInfo> logs)
         {
-            var start = BuildStartInfo(cmd, options);
+            return Execute(new[] {cmd}, options, out logs);
+        }
+        
+        /// <summary>
+        /// Execute commands synchronously
+        /// </summary>
+        /// <param name="cmds">List of commands to execute</param>
+        /// <param name="options">Execution options</param>
+        /// <param name="logs">All logs generated during command execution</param>
+        /// <returns>ExitCode</returns>
+        public static int Execute(IEnumerable<string> cmds, Options options, out List<LogInfo> logs)
+        {
+            var start = BuildStartInfo(cmds, options);
             var p = Process.Start(start);
             logs = new List<LogInfo>();
             do{
@@ -162,18 +176,29 @@ namespace MS.Shell.Editor{
         }
 
         /// <summary>
-        /// 执行一个命令(异步)
+        /// Execute a command asynchronously
         /// </summary>
-        /// <param name="cmd"></param>
-        /// <param name="options"></param>
+        /// <param name="cmd">Command to execute</param>
+        /// <param name="options">Execution options</param>
         /// <returns></returns>
-        public static Operation Execute(string cmd, Options options = null){
+        public static Operation Execute(string cmd, Options options = null)
+        {
+            return Execute(new[] {cmd}, options);
+        }
+
+        /// <summary>
+        /// Execute commands asynchronously
+        /// </summary>
+        /// <param name="cmds">List of commands to execute</param>
+        /// <param name="options">Execution options</param>
+        /// <returns></returns>
+        public static Operation Execute(IEnumerable<string> cmds, Options options = null){
             Operation operation = new Operation();
             System.Threading.ThreadPool.QueueUserWorkItem(delegate(object state) {
                 Process p = null;
                 try
                 {
-                    var start = BuildStartInfo(cmd, options);
+                    var start = BuildStartInfo(cmds, options);
 
                     if(operation.isKillRequested){
                         return;
@@ -243,11 +268,46 @@ namespace MS.Shell.Editor{
                 Message = message;
             }
         }
+        
+        /// <summary>
+        /// multiple commands execution options
+        /// </summary>
+        public enum ProcessingSymbolsType
+        {
+            /// <summary>
+            /// Only when the first command run successfully, run the second command.(Default)
+            /// </summary>
+            OnlyWhenPreCmdSuccess,
+            /// <summary>
+            /// Only when the first command failed to run, run the second command
+            /// </summary>
+            OnlyWhenPreCmdFailure,
+            /// <summary>
+            /// No matter the first command run successfully or not, always run the second command
+            /// </summary>
+            AlwaysExec,
+        }
 
         public class Options{
             public System.Text.Encoding encoding = Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage);
             public string workDirectory = "./";
             public Dictionary<string,string> environmentVars = new Dictionary<string,string>();
+            public ProcessingSymbolsType processingSymbolsType = ProcessingSymbolsType.OnlyWhenPreCmdSuccess;
+            
+            public string GetProcessingSymbol()
+            {
+                return processingSymbolsType switch
+                {
+                    ProcessingSymbolsType.OnlyWhenPreCmdSuccess => "&&",
+                    ProcessingSymbolsType.OnlyWhenPreCmdFailure => "||",
+#if UNITY_EDITOR_WIN
+                    ProcessingSymbolsType.AlwaysExec => "&",
+#else
+                    ProcessingSymbolsType.AlwaysExec => ";",
+#endif
+                    _ => "&&"
+                };
+            }
         }
 
         public class Operation{
