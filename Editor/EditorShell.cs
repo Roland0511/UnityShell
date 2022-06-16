@@ -129,7 +129,7 @@ namespace MS.Shell.Editor{
         {
             return Execute(cmd, options, out logs);
         }
-
+        
         /// <summary>
         /// 执行一个命令(同步)
         /// </summary>
@@ -142,7 +142,6 @@ namespace MS.Shell.Editor{
             var start = BuildStartInfo(cmd, options);
             var p = Process.Start(start);
             logs = new List<LogInfo>();
-            p.WaitForExit();
             do{
                 var line = p.StandardOutput.ReadLine();
                 if(line == null){
@@ -158,6 +157,7 @@ namespace MS.Shell.Editor{
                 }
                 logs.Add(new LogInfo(LogType.Error, error));
             }
+            p.WaitForExit();
             return p.ExitCode;
         }
 
